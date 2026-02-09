@@ -322,10 +322,15 @@ def _norm_bill(b: Any) -> dict:
     latest_action = b.get("latestAction")
     if isinstance(latest_action, dict):
         status = latest_action.get("text") or latest_action.get("description") or latest_action.get("actionDate")
+    elif isinstance(latest_action, str):
+        status = latest_action
     else:
         status = latest_action
     if not status:
         status = b.get("status") or b.get("currentStatus")
+    # Congress API may return currentStatus/status as an object with name/description
+    if isinstance(status, dict):
+        status = status.get("name") or status.get("description") or status.get("text")
     return {
         "number": b.get("number"),
         "title": b.get("title") or b.get("shortTitle") or b.get("displayNumber"),

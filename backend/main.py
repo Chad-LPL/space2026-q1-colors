@@ -56,6 +56,7 @@ class ContactEventCreate(BaseModel):
 
 
 class ScriptGenerateRequest(BaseModel):
+    model_config = {"populate_by_name": True}
     memberId: str
     issueOrBillId: Optional[str] = None
     issueText: Optional[str] = None
@@ -68,6 +69,39 @@ class ScriptGenerateRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/debug/gemini")
+def debug_gemini(test: bool = Query(False, description="If true, call Gemini once to verify key and quota")):
+    """Check if GEMINI_API_KEY is set and optionally test one Gemini call. Helps debug script generation failures."""
+    from config import GEMINI_API_KEY
+    key_loaded = bool(GEMINI_API_KEY and GEMINI_API_KEY.strip())
+    key_preview = ""
+    if key_loaded:
+        k = (GEMINI_API_KEY or "").strip()
+        key_preview = f"{k[:4]}...{k[-4:]}" if len(k) >= 8 else "set"
+    test_ok = None
+    test_error = None
+    if key_loaded and test:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            r = model.generate_content("Say hello in one word.")
+            if getattr(r, "text", None) and r.text.strip():
+                test_ok = True
+            else:
+                test_ok = False
+                test_error = "Empty or blocked response"
+        except Exception as e:
+            test_ok = False
+            test_error = _sanitize_error_for_user(str(e), max_len=200)
+    return {
+        "gemini_key_loaded": key_loaded,
+        "gemini_key_preview": key_preview if key_loaded else None,
+        "test_request_ok": test_ok,
+        "test_error": test_error,
+    }
 
 
 @app.get("/debug/congress-api")
@@ -197,17 +231,27 @@ def script_get(script_id: int, db: Session = Depends(get_db)):
     return {"id": r.id, "title": r.title, "body": r.body, "subject": r.subject, "billId": r.bill_id, "issueSlug": r.issue_slug}
 
 
+def _sanitize_error_for_user(msg: str, max_len: int = 120) -> str:
+    """Remove anything that could be an API key or token; truncate."""
+    if not msg:
+        return ""
+    # Remove substrings that look like keys (long alphanumeric stretches)
+    import re
+    out = re.sub(r"\b[A-Za-z0-9_-]{30,}\b", "[REDACTED]", msg)
+    return out.strip()[:max_len]
+
+
 def _generate_script_gemini(
     member_name: str,
     member_state: Optional[str],
     member_party: Optional[str],
     topic: str,
-) -> Optional[dict]:
-    """Call Gemini to generate email body, call script, and subject. Returns dict or None on failure."""
+) -> tuple[Optional[dict], Optional[str], Optional[str]]:
+    """Call Gemini to generate email body, call script, and subject. Returns (result_dict, None, None) or (None, hint, detail) on failure."""
     import re
     from config import GEMINI_API_KEY
     if not GEMINI_API_KEY or not topic.strip():
-        return None
+        return None, None, None
     try:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
@@ -229,71 +273,149 @@ EMAIL:
 CALL_SCRIPT:
 (A short phone script: intro e.g. "Hi, I'm a constituent from [state]." Then the main ask in 1-2 sentences. End with e.g. "Thank you for your time.")"""
         response = model.generate_content(prompt)
-        if not response or not response.text:
-            return None
+        if not response:
+            return None, "API returned no response", None
+        if not getattr(response, "text", None) or not response.text.strip():
+            import logging
+            fb = getattr(response, "prompt_feedback", None)
+            logging.warning("Gemini returned empty or blocked response: %s", fb)
+            hint = "blocked or empty response"
+            if fb and getattr(fb, "block_reason", None):
+                hint = str(getattr(fb, "block_reason", hint))
+            return None, hint, None
         text = response.text.strip()
         subject = "Constituent request"
         email_body = ""
         call_script = ""
-        if "SUBJECT:" in text:
-            subj_match = re.search(r"SUBJECT:\s*(.+?)(?=\n\n|\nEMAIL:|\Z)", text, re.DOTALL | re.IGNORECASE)
+        # Case-insensitive section headers; allow "Email" or "EMAIL", etc.
+        if re.search(r"SUBJECT\s*:", text, re.IGNORECASE):
+            subj_match = re.search(
+                r"SUBJECT\s*:\s*(.+?)(?=\n\s*\n|\n\s*EMAIL\s*:|\n\s*CALL_SCRIPT\s*:|\Z)",
+                text, re.DOTALL | re.IGNORECASE
+            )
             if subj_match:
                 subject = subj_match.group(1).strip().split("\n")[0].strip() or subject
-        if "EMAIL:" in text and "CALL_SCRIPT:" in text:
-            email_match = re.search(r"EMAIL:\s*(.+?)CALL_SCRIPT:", text, re.DOTALL | re.IGNORECASE)
-            call_match = re.search(r"CALL_SCRIPT:\s*(.+)$", text, re.DOTALL | re.IGNORECASE)
-            if email_match:
-                email_body = email_match.group(1).strip()
-            if call_match:
-                call_script = call_match.group(1).strip()
+        email_match = re.search(
+            r"EMAIL\s*:\s*(.+?)(?=CALL_SCRIPT\s*:|\Z)",
+            text, re.DOTALL | re.IGNORECASE
+        )
+        call_match = re.search(
+            r"CALL_SCRIPT\s*:\s*(.+)$",
+            text, re.DOTALL | re.IGNORECASE
+        )
+        if email_match:
+            email_body = email_match.group(1).strip()
+        if call_match:
+            call_script = call_match.group(1).strip()
+        # Fallback: if model returned prose without strict headers, use first 2 paragraphs as email, rest as call
+        if (not email_body or not call_script) and len(text) > 100:
+            paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+            if len(paras) >= 2:
+                email_body = email_body or "\n\n".join(paras[:2])
+                call_script = call_script or (paras[-1] if paras else text[:800])
         if not email_body or not call_script:
-            return None
-        return {"emailBody": email_body, "callScript": call_script, "subject": subject}
+            return None, "could not parse response", None
+        return {"emailBody": email_body, "callScript": call_script, "subject": subject}, None, None
     except Exception as e:
         import logging
         logging.warning("Gemini script generation failed: %s", e)
+        err_msg = str(e).lower()
+        detail = _sanitize_error_for_user(str(e))
+        hint = "API error"
+        if "quota" in err_msg or "rate" in err_msg or "429" in err_msg or "resource exhausted" in err_msg:
+            hint = "rate limit (try again in a minute or check Gemini quota)"
+        elif "blocked" in err_msg or "safety" in err_msg:
+            hint = "content blocked"
+        elif "api_key" in err_msg or "api key" in err_msg or "401" in err_msg or "403" in err_msg or "invalid" in err_msg and "key" in err_msg:
+            hint = "invalid or missing API key (check GEMINI_API_KEY in backend/.env)"
+        return None, hint, detail
+
+
+def _library_script_for_topic(db: Session, topic: str) -> Optional[dict]:
+    """Try to find a library script matching the topic (by issue_slug or title). Returns dict with emailBody, callScript, subject or None."""
+    if not topic or not topic.strip():
         return None
+    t = topic.strip().lower()
+    # Normalize to slug-like: lowercase, replace spaces/slashes with hyphen
+    slug_candidate = "".join(c if c.isalnum() or c == "-" else "-" for c in t)
+    slug_candidate = "-".join(slug_candidate.split("-"))  # collapse multiple hyphens
+    rows = db.query(ContactScript).filter(
+        ContactScript.email_body.isnot(None),
+        ContactScript.call_script.isnot(None),
+    ).all()
+    for row in rows:
+        if not row.email_body or not row.call_script:
+            continue
+        if row.issue_slug and (row.issue_slug.lower() == t or row.issue_slug.lower() in t or slug_candidate and row.issue_slug.lower() in slug_candidate):
+            return {"emailBody": row.email_body, "callScript": row.call_script, "subject": row.subject or "Constituent request"}
+        if row.title and row.title.lower() in t:
+            return {"emailBody": row.email_body, "callScript": row.call_script, "subject": row.subject or "Constituent request"}
+    # Keyword map: common phrases -> issue_slug for lookup
+    keywords_to_slug = {
+        "climate": "climate", "healthcare": "healthcare", "voting": "voting-rights", "abortion": "abortion",
+        "gun": "gun-violence", "immigration": "immigration", "economy": "economy-jobs", "inflation": "inflation",
+        "student debt": "student-debt", "education": "education", "housing": "housing", "childcare": "childcare",
+        "paid leave": "paid-leave", "minimum wage": "minimum-wage", "union": "unions", "infrastructure": "infrastructure",
+        "drug price": "drug-pricing", "medicare": "medicare-social-security", "social security": "medicare-social-security",
+        "lgbtq": "lgbtq-rights", "racial justice": "racial-justice", "criminal justice": "criminal-justice",
+        "policing": "policing", "supreme court": "supreme-court", "democracy": "democracy-reform",
+        "gerrymander": "gerrymandering", "campaign finance": "campaign-finance", "ukraine": "ukraine-nato",
+        "china": "china", "border": "border-asylum", "daca": "daca", "dreamer": "daca", "tax": "tax-fairness",
+        "debt ceiling": "deficit-debt", "opioid": "opioid", "mental health": "mental-health", "veteran": "veterans",
+        "broadband": "broadband", "clean energy": "clean-energy", "environment": "environment",
+        "women": "womens-rights", "equal pay": "womens-rights", "disability": "disability-rights",
+        "elder": "elder-care", "snap": "snap", "food": "snap", "medicaid": "medicaid", "aca": "aca",
+        "trade": "trade", "small business": "small-business", "agriculture": "agriculture", "farm": "agriculture",
+        "tribal": "tribal", "native": "tribal", "postal": "postal-voting", "usps": "postal-voting",
+        "net neutrality": "net-neutrality", "tech": "net-neutrality",
+    }
+    for keyword, slug in keywords_to_slug.items():
+        if keyword in t:
+            row = db.query(ContactScript).filter(ContactScript.issue_slug == slug).first()
+            if row and row.email_body and row.call_script:
+                return {"emailBody": row.email_body, "callScript": row.call_script, "subject": row.subject or "Constituent request"}
+    return None
 
 
 @app.post("/scripts/generate")
 def script_generate(body: ScriptGenerateRequest, db: Session = Depends(get_db)):
-    """Generate script via LLM (Gemini preferred). Without LLM key, returns placeholder."""
+    """Generate script: prefer library (50 topics), else placeholder. Gemini available but not used when library matches."""
     from config import GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
     placeholder = {
         "emailBody": "I am a constituent and I'm writing to ask you to support [describe the issue]. Thank you.",
         "callScript": "Hi, I'm a constituent. I'm calling to ask you to support [describe the issue]. Thank you.",
         "subject": "Constituent request",
     }
-    no_llm_message = "LLM not configured; using placeholder. Add GEMINI_API_KEY (free at https://aistudio.google.com/app/apikey) for AI-generated scripts."
-    if not GEMINI_API_KEY and not OPENAI_API_KEY and not ANTHROPIC_API_KEY:
-        return {**placeholder, "message": no_llm_message}
+    no_library_message = "No script in our library for this topic. Pick a topic above or add GEMINI_API_KEY for AI-generated scripts."
 
-    topic = (body.issueText or "").strip()
-    if not topic and (body.issueTitle or body.issueOrBillId):
-        topic = (body.issueTitle or body.issueOrBillId or "").strip()
+    # 1) When scriptId is provided: return library content if row has email_body and call_script
+    if body.scriptId:
+        row = db.query(ContactScript).filter(ContactScript.id == body.scriptId).first()
+        if row and (row.email_body or "").strip() and (row.call_script or "").strip():
+            return {
+                "emailBody": row.email_body,
+                "callScript": row.call_script,
+                "subject": row.subject or "Constituent request",
+            }
+
+    topic = (body.issueText or body.issueTitle or "").strip()
+    if not topic and body.issueOrBillId:
+        topic = (body.issueOrBillId or "").strip()
     if not topic and body.scriptId:
         row = db.query(ContactScript).filter(ContactScript.id == body.scriptId).first()
         if row:
-            topic = (row.title or row.issue_slug or row.bill_id or "this issue").strip()
+            topic = (row.title or row.issue_slug or row.bill_id or "").strip()
 
-    member_name = "your representative"
-    member_state = None
-    member_party = None
-    if body.memberId:
-        m = get_member(body.memberId)
-        if m:
-            member_name = m.get("name") or member_name
-            member_state = m.get("state")
-            member_party = m.get("party")
+    # 2) Try to match topic to library (by slug or keywords)
+    if topic:
+        lib = _library_script_for_topic(db, topic)
+        if lib:
+            return lib
 
-    if GEMINI_API_KEY and topic:
-        result = _generate_script_gemini(member_name, member_state, member_party, topic)
-        if result:
-            return result
-        return {**placeholder, "message": "Generation failed; rate limit or API error. Try again in a moment."}
-    if GEMINI_API_KEY and not topic:
+    # 3) No library match: return placeholder (demo: don't call Gemini to avoid rate limits)
+    if not topic:
         return {**placeholder, "message": "Enter an issue or pick a topic above, then click Generate script."}
-    return {**placeholder, "message": no_llm_message}
+    return {**placeholder, "message": no_library_message}
 
 
 # ---------- Contact events (stats) ----------

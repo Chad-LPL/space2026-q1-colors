@@ -26,6 +26,8 @@ class ContactScript(Base):
     subject = Column(String(255))
     bill_id = Column(String(50), index=True)
     issue_slug = Column(String(100), index=True)
+    email_body = Column(Text)   # full email for library; when set, /scripts/generate returns this instead of calling LLM
+    call_script = Column(Text)  # full phone script for library
 
 
 class ContactEvent(Base):
