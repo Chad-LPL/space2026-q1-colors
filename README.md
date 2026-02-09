@@ -32,10 +32,9 @@ Run both backend and frontend; address lookup and member data require the backen
   ```
   Do not commit `.env`; it is in `.gitignore`.
 
-- **LLM (optional, for AI-generated contact scripts):** To have the app generate email/call scripts from an issue or bill, add either:
-  - `OPENAI_API_KEY=...` (OpenAI), or  
-  - `ANTHROPIC_API_KEY=...` (Anthropic)  
-  in `backend/.env`. Without one of these, the script endpoint returns a placeholder script.
+- **LLM (optional, for AI-generated contact scripts):** To have the app generate detailed email and call scripts from an issue or topic, add a **Gemini API key** (free tier) in `backend/.env`:
+  - Get a key at [Google AI Studio](https://aistudio.google.com/app/apikey), then set `GEMINI_API_KEY=your_key` in `backend/.env`.
+  - Without any LLM key, the script endpoint returns a placeholder. OpenAI and Anthropic keys are also supported in config but Gemini is used first when set.
 
 ## Backend API (Congress Map)
 

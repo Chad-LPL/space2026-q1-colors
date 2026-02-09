@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
-import type { Member } from "./api";
+import type { Member, MemberBill } from "./api";
 import { getMemberBills, getMemberVotes } from "./api";
 
 interface Props {
   member: Member;
   onClose: () => void;
   onContact: () => void;
+  onContactAboutBill?: (member: Member, bill: MemberBill) => void;
 }
 
-export default function MemberDetail({ member, onClose, onContact }: Props) {
-  const [bills, setBills] = useState<Array<{ number?: string; title?: string; url?: string; introducedDate?: string }>>([]);
+export default function MemberDetail({ member, onClose, onContact, onContactAboutBill }: Props) {
+  const [bills, setBills] = useState<MemberBill[]>([]);
   const [votes, setVotes] = useState<Array<{ position?: string; description?: string; date?: string; url?: string }>>([]);
 
   useEffect(() => {
@@ -17,7 +18,12 @@ export default function MemberDetail({ member, onClose, onContact }: Props) {
     getMemberVotes(member.id).then((r) => setVotes(r.votes));
   }, [member.id]);
 
-  const party = member.party === "Republican" || member.party === "R" ? "R" : member.party === "Democratic" || member.party === "D" ? "D" : member.party ?? "—";
+  const partyLabel =
+    member.party === "Republican" || member.party === "R"
+      ? "Republican"
+      : member.party === "Democratic" || member.party === "D"
+        ? "Democratic"
+        : member.party ?? "—";
 
   return (
     <div
@@ -50,7 +56,7 @@ export default function MemberDetail({ member, onClose, onContact }: Props) {
           <div>
             <h2 style={{ margin: 0, fontSize: "1.25rem", color: "#1a1a1a" }}>{member.name}</h2>
             <div style={{ color: "#555", fontSize: "0.9rem", marginTop: 4 }}>
-              {party} · {member.state}
+              {partyLabel} · {member.state}
               {member.district != null && member.district > 0 ? `-${member.district}` : ""}
             </div>
             {member.phone && <div style={{ marginTop: 6 }}>📞 {member.phone}</div>}
@@ -114,14 +120,36 @@ export default function MemberDetail({ member, onClose, onContact }: Props) {
               </h3>
               <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.9rem" }}>
                 {bills.slice(0, 10).map((b, i) => (
-                  <li key={i} style={{ marginBottom: 4 }}>
-                    {b.url ? (
-                      <a href={b.url} target="_blank" rel="noopener noreferrer">
-                        {b.title || b.number || "Bill"}
-                      </a>
-                    ) : (
-                      <span>{b.title || b.number || "Bill"}</span>
-                    )}
+                  <li key={i} style={{ marginBottom: 8, listStyle: "none", marginLeft: "-1.25rem" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem" }}>
+                      {b.url ? (
+                        <a href={b.url} target="_blank" rel="noopener noreferrer">
+                          {b.title || b.number || "Bill"}
+                        </a>
+                      ) : (
+                        <span>{b.title || b.number || "Bill"}</span>
+                      )}
+                      {b.status && (
+                        <span style={{ fontSize: "0.8rem", color: "#555" }}>{b.status}</span>
+                      )}
+                      {onContactAboutBill && (
+                        <button
+                          type="button"
+                          onClick={() => onContactAboutBill(member, b)}
+                          style={{
+                            padding: "0.25rem 0.5rem",
+                            fontSize: "0.8rem",
+                            border: "1px solid #1976d2",
+                            borderRadius: 4,
+                            background: "transparent",
+                            color: "#1976d2",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Contact about this bill
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -59,6 +59,8 @@ class ScriptGenerateRequest(BaseModel):
     memberId: str
     issueOrBillId: Optional[str] = None
     issueText: Optional[str] = None
+    issueTitle: Optional[str] = None  # e.g. seed script title for LLM context
+    scriptId: Optional[int] = None  # seed script id; backend can look up title/issueSlug/billId
     format: Optional[str] = None  # "email" | "call"
 
 
@@ -195,23 +197,103 @@ def script_get(script_id: int, db: Session = Depends(get_db)):
     return {"id": r.id, "title": r.title, "body": r.body, "subject": r.subject, "billId": r.bill_id, "issueSlug": r.issue_slug}
 
 
+def _generate_script_gemini(
+    member_name: str,
+    member_state: Optional[str],
+    member_party: Optional[str],
+    topic: str,
+) -> Optional[dict]:
+    """Call Gemini to generate email body, call script, and subject. Returns dict or None on failure."""
+    import re
+    from config import GEMINI_API_KEY
+    if not GEMINI_API_KEY or not topic.strip():
+        return None
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        state_line = f", State: {member_state}" if member_state else ""
+        party_line = f", Party: {member_party}" if member_party else ""
+        prompt = f"""You are helping a constituent write to their member of Congress. Write from a left-leaning, progressive perspective: the tone and policy stance should reflect progressive values (e.g. climate action, healthcare access, voting rights, economic fairness, civil rights).
+
+Member: {member_name}{state_line}{party_line}
+Topic/issue the constituent cares about: {topic}
+
+Respond with exactly three sections, no other text before or after:
+
+SUBJECT: (one short subject line for the email, under 80 chars)
+
+EMAIL:
+(2-3 short paragraphs: say you are a constituent, state what you want them to support or oppose, briefly why it matters to you, and a polite closing.)
+
+CALL_SCRIPT:
+(A short phone script: intro e.g. "Hi, I'm a constituent from [state]." Then the main ask in 1-2 sentences. End with e.g. "Thank you for your time.")"""
+        response = model.generate_content(prompt)
+        if not response or not response.text:
+            return None
+        text = response.text.strip()
+        subject = "Constituent request"
+        email_body = ""
+        call_script = ""
+        if "SUBJECT:" in text:
+            subj_match = re.search(r"SUBJECT:\s*(.+?)(?=\n\n|\nEMAIL:|\Z)", text, re.DOTALL | re.IGNORECASE)
+            if subj_match:
+                subject = subj_match.group(1).strip().split("\n")[0].strip() or subject
+        if "EMAIL:" in text and "CALL_SCRIPT:" in text:
+            email_match = re.search(r"EMAIL:\s*(.+?)CALL_SCRIPT:", text, re.DOTALL | re.IGNORECASE)
+            call_match = re.search(r"CALL_SCRIPT:\s*(.+)$", text, re.DOTALL | re.IGNORECASE)
+            if email_match:
+                email_body = email_match.group(1).strip()
+            if call_match:
+                call_script = call_match.group(1).strip()
+        if not email_body or not call_script:
+            return None
+        return {"emailBody": email_body, "callScript": call_script, "subject": subject}
+    except Exception as e:
+        import logging
+        logging.warning("Gemini script generation failed: %s", e)
+        return None
+
+
 @app.post("/scripts/generate")
-def script_generate(body: ScriptGenerateRequest):
-    """Generate script via LLM. Without LLM key, returns placeholder message."""
-    from config import OPENAI_API_KEY, ANTHROPIC_API_KEY
-    if not OPENAI_API_KEY and not ANTHROPIC_API_KEY:
-        return {
-            "emailBody": "I am a constituent and I'm writing to ask you to support [describe the issue]. Thank you.",
-            "callScript": "Hi, I'm a constituent. I'm calling to ask you to support [describe the issue]. Thank you.",
-            "subject": "Constituent request",
-            "message": "LLM not configured; using placeholder. Add OPENAI_API_KEY or ANTHROPIC_API_KEY for AI-generated scripts.",
-        }
-    # TODO: call OpenAI or Anthropic with member + issue, return generated text
-    return {
+def script_generate(body: ScriptGenerateRequest, db: Session = Depends(get_db)):
+    """Generate script via LLM (Gemini preferred). Without LLM key, returns placeholder."""
+    from config import GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
+    placeholder = {
         "emailBody": "I am a constituent and I'm writing to ask you to support [describe the issue]. Thank you.",
         "callScript": "Hi, I'm a constituent. I'm calling to ask you to support [describe the issue]. Thank you.",
         "subject": "Constituent request",
     }
+    no_llm_message = "LLM not configured; using placeholder. Add GEMINI_API_KEY (free at https://aistudio.google.com/app/apikey) for AI-generated scripts."
+    if not GEMINI_API_KEY and not OPENAI_API_KEY and not ANTHROPIC_API_KEY:
+        return {**placeholder, "message": no_llm_message}
+
+    topic = (body.issueText or "").strip()
+    if not topic and (body.issueTitle or body.issueOrBillId):
+        topic = (body.issueTitle or body.issueOrBillId or "").strip()
+    if not topic and body.scriptId:
+        row = db.query(ContactScript).filter(ContactScript.id == body.scriptId).first()
+        if row:
+            topic = (row.title or row.issue_slug or row.bill_id or "this issue").strip()
+
+    member_name = "your representative"
+    member_state = None
+    member_party = None
+    if body.memberId:
+        m = get_member(body.memberId)
+        if m:
+            member_name = m.get("name") or member_name
+            member_state = m.get("state")
+            member_party = m.get("party")
+
+    if GEMINI_API_KEY and topic:
+        result = _generate_script_gemini(member_name, member_state, member_party, topic)
+        if result:
+            return result
+        return {**placeholder, "message": "Generation failed; rate limit or API error. Try again in a moment."}
+    if GEMINI_API_KEY and not topic:
+        return {**placeholder, "message": "Enter an issue or pick a topic above, then click Generate script."}
+    return {**placeholder, "message": no_llm_message}
 
 
 # ---------- Contact events (stats) ----------

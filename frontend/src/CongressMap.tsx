@@ -129,6 +129,8 @@ export default function CongressMap() {
   }, []);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [contactMember, setContactMember] = useState<Member | null>(null);
+  const [initialContactIssue, setInitialContactIssue] = useState<string | null>(null);
+  const [initialContactBillId, setInitialContactBillId] = useState<string | null>(null);
   const [showPostcard, setShowPostcard] = useState(false);
 
   const handleAddressSubmit = useCallback(async (address: string) => {
@@ -423,7 +425,11 @@ export default function CongressMap() {
               senators={membersData.senators}
               membersError={membersData.membersError}
               onSelectMember={setSelectedMember}
-              onContactMember={setContactMember}
+              onContactMember={(m) => {
+                setContactMember(m);
+                setInitialContactIssue(null);
+                setInitialContactBillId(null);
+              }}
               onSendPostcard={() => setShowPostcard(true)}
             />
           )}
@@ -442,6 +448,14 @@ export default function CongressMap() {
           onContact={() => {
             setContactMember(selectedMember);
             setSelectedMember(null);
+            setInitialContactIssue(null);
+            setInitialContactBillId(null);
+          }}
+          onContactAboutBill={(m, bill) => {
+            setContactMember(m);
+            setSelectedMember(null);
+            setInitialContactIssue(bill.title || bill.number || "this bill");
+            setInitialContactBillId(bill.number || null);
           }}
         />
       )}
@@ -449,7 +463,13 @@ export default function CongressMap() {
       {contactMember && (
         <ScriptFlow
           member={contactMember}
-          onClose={() => setContactMember(null)}
+          onClose={() => {
+            setContactMember(null);
+            setInitialContactIssue(null);
+            setInitialContactBillId(null);
+          }}
+          initialIssue={initialContactIssue ?? undefined}
+          initialBillId={initialContactBillId ?? undefined}
         />
       )}
 

@@ -154,7 +154,15 @@ export async function getMember(id: string): Promise<Member | { error: string }>
   return data as Member;
 }
 
-export async function getMemberBills(id: string, limit = 20): Promise<{ bills: Array<{ number?: string; title?: string; url?: string; introducedDate?: string }> }> {
+export interface MemberBill {
+  number?: string;
+  title?: string;
+  url?: string;
+  introducedDate?: string;
+  status?: string | null;
+}
+
+export async function getMemberBills(id: string, limit = 20): Promise<{ bills: MemberBill[] }> {
   const r = await fetch(`${BASE}/members/${encodeURIComponent(id)}/bills?limit=${limit}`);
   if (!r.ok) return { bills: [] };
   const data = await r.json();
@@ -187,6 +195,8 @@ export async function generateScript(params: {
   memberId: string;
   issueOrBillId?: string | null;
   issueText?: string | null;
+  issueTitle?: string | null;
+  scriptId?: number | null;
   format?: string | null;
 }): Promise<ScriptGenerateResponse> {
   const r = await fetch(`${BASE}/scripts/generate`, {

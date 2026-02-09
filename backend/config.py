@@ -23,6 +23,7 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 CURRENT_CONGRESS = 119
 CONGRESS_FOR_MEMBER_LOOKUP = 118  # Use 118 for /member/congress/{congress}/{state}/{district} until 119 is populated
 
-# Optional: LLM for AI-generated scripts
+# Optional: LLM for AI-generated scripts (Gemini free tier: https://aistudio.google.com/app/apikey)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

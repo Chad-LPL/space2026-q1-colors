@@ -9,6 +9,9 @@ venv/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+# Large data files (generate locally or host elsewhere)
+frontend/public/districts_precomputed.json
+backend/static/districts_118.geojson
 
 # IDE
 .idea/

@@ -213,6 +213,21 @@ def _terms_list(m: dict) -> list:
     return []
 
 
+def _normalize_party(raw: Any) -> Optional[str]:
+    """Return consistent party string: Republican, Democratic, or original if other (e.g. Independent)."""
+    if not raw:
+        return None
+    s = (str(raw) or "").strip()
+    if not s:
+        return None
+    lower = s.lower()
+    if lower in ("republican", "r"):
+        return "Republican"
+    if lower in ("democratic", "d"):
+        return "Democratic"
+    return s
+
+
 def _normalize_member(m: dict) -> dict:
     """Extract a flat member object for API response. Handles Congress API v3 camelCase."""
     if not m or not isinstance(m, dict):
@@ -231,13 +246,15 @@ def _normalize_member(m: dict) -> dict:
     uid = m.get("bioguideId") or m.get("id")
     if uid is None and terms:
         uid = current.get("bioguideId") or current.get("id")
+    raw_party = current.get("party") or m.get("party") or current.get("partyName") or m.get("partyName")
+    party = _normalize_party(raw_party) or raw_party
     return {
         "id": str(uid) if uid is not None else None,
         "bioguideId": m.get("bioguideId"),
         "name": name or "Unknown",
         "firstName": m.get("firstName") or current.get("firstName"),
         "lastName": m.get("lastName") or current.get("lastName"),
-        "party": current.get("party") or m.get("party"),
+        "party": party,
         "state": current.get("state") or m.get("state"),
         "district": current.get("district"),
         "chamber": chamber,
@@ -301,12 +318,20 @@ def get_member_votes(bioguide_id: str, limit: int = 20) -> list[dict]:
 
 def _norm_bill(b: Any) -> dict:
     if not isinstance(b, dict):
-        return {"title": str(b), "url": None}
+        return {"title": str(b), "url": None, "status": None}
+    latest_action = b.get("latestAction")
+    if isinstance(latest_action, dict):
+        status = latest_action.get("text") or latest_action.get("description") or latest_action.get("actionDate")
+    else:
+        status = latest_action
+    if not status:
+        status = b.get("status") or b.get("currentStatus")
     return {
         "number": b.get("number"),
         "title": b.get("title") or b.get("shortTitle") or b.get("displayNumber"),
         "url": b.get("url") or b.get("congressUrl"),
         "introducedDate": b.get("introducedDate"),
+        "status": str(status).strip() if status else None,
     }
 
 

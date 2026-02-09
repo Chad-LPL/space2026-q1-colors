@@ -1,28 +1,37 @@
 import { useState, useEffect } from "react";
-import type { Member } from "./api";
+import type { Member, MemberBill } from "./api";
 import {
   getScripts,
   getScript,
   generateScript,
   getContactStats,
   recordContactEvent,
+  getMemberBills,
 } from "./api";
 
 interface Props {
   member: Member;
   onClose: () => void;
+  initialIssue?: string;
+  initialBillId?: string;
 }
 
-export default function ScriptFlow({ member, onClose }: Props) {
+export default function ScriptFlow({ member, onClose, initialIssue, initialBillId }: Props) {
   const [scripts, setScripts] = useState<Array<{ id: number; title: string; billId?: string | null; issueSlug?: string | null }>>([]);
   const [selectedScriptId, setSelectedScriptId] = useState<number | null>(null);
-  const [customIssue, setCustomIssue] = useState("");
+  const [customIssue, setCustomIssue] = useState(initialIssue ?? "");
   const [emailBody, setEmailBody] = useState("");
   const [callScript, setCallScript] = useState("");
   const [subject, setSubject] = useState("");
   const [loading, setLoading] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState<string | null>(null);
   const [stats, setStats] = useState<{ last7Days: number; last30Days: number } | null>(null);
   const [issueForStats, setIssueForStats] = useState<string | null>(null);
+  const [bills, setBills] = useState<MemberBill[]>([]);
+
+  useEffect(() => {
+    if (initialIssue != null) setCustomIssue(initialIssue);
+  }, [initialIssue]);
 
   useEffect(() => {
     getScripts().then((r) => setScripts(r.scripts));
@@ -35,43 +44,70 @@ export default function ScriptFlow({ member, onClose }: Props) {
     });
   }, [member?.id]);
 
+  useEffect(() => {
+    if (!member?.id) return;
+    getMemberBills(member.id).then((r) => setBills(r.bills ?? []));
+  }, [member?.id]);
+
   async function loadSeedScript(id: number) {
     setSelectedScriptId(id);
     setCustomIssue("");
+    setGenerateMessage(null);
     const script = await getScript(id);
     if (script) {
-      setEmailBody(script.body);
-      setCallScript(script.body);
-      setSubject(script.subject || "Constituent request");
       setIssueForStats(script.issueSlug || script.billId || null);
       if (script.issueSlug || script.billId) {
         getContactStats(member.id, script.billId ?? undefined, script.issueSlug ?? undefined).then((s) => {
           if (s) setStats({ last7Days: s.last7Days, last30Days: s.last30Days });
         });
       }
+      // Generate detailed script via LLM instead of showing short seed body
+      setEmailBody("");
+      setCallScript("");
+      setSubject("");
+      await runGenerate(scripts.find((s) => s.id === id) ?? null, undefined, undefined);
     }
   }
 
-  async function handleGenerate() {
+  async function runGenerate(
+    selected: { id: number; title: string; billId?: string | null; issueSlug?: string | null } | null,
+    overrideIssueText: string | undefined,
+    overrideBillId: string | undefined,
+  ) {
     setLoading(true);
+    setGenerateMessage(null);
     try {
       const res = await generateScript({
         memberId: member.id,
-        issueText: customIssue.trim() || undefined,
-        issueOrBillId: selectedScriptId != null ? undefined : undefined,
+        issueText: (overrideIssueText ?? customIssue.trim()) || undefined,
+        issueOrBillId: selected ? (selected.issueSlug || selected.billId || undefined) : (overrideBillId ?? initialBillId ?? undefined),
+        issueTitle: selected ? selected.title : (initialIssue ?? (overrideIssueText ?? customIssue.trim()) || undefined),
+        scriptId: selected?.id ?? selectedScriptId ?? undefined,
       });
       setEmailBody(res.emailBody);
       setCallScript(res.callScript);
       setSubject(res.subject || "Constituent request");
-      setIssueForStats(customIssue.trim() || null);
-      if (customIssue.trim()) {
-        getContactStats(member.id, undefined, customIssue.trim()).then((s) => {
+      if (res.message) setGenerateMessage(res.message);
+      setIssueForStats(selected ? (selected.issueSlug || selected.billId || null) : (overrideIssueText ?? customIssue.trim()) || null);
+      if (overrideIssueText ?? customIssue.trim()) {
+        getContactStats(member.id, undefined, overrideIssueText ?? customIssue.trim()).then((s) => {
+          if (s) setStats({ last7Days: s.last7Days, last30Days: s.last30Days });
+        });
+      } else if (selected?.issueSlug || selected?.billId) {
+        getContactStats(member.id, selected?.billId ?? undefined, selected?.issueSlug ?? undefined).then((s) => {
           if (s) setStats({ last7Days: s.last7Days, last30Days: s.last30Days });
         });
       }
+    } catch (err) {
+      setGenerateMessage(err instanceof Error ? err.message : "Failed to generate script. Is the backend running?");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleGenerate() {
+    const selected = selectedScriptId != null ? scripts.find((s) => s.id === selectedScriptId) : null;
+    await runGenerate(selected, undefined, undefined);
   }
 
   function handleSendEmail() {
@@ -81,8 +117,13 @@ export default function ScriptFlow({ member, onClose }: Props) {
       topic: topic || undefined,
       contactType: "email",
     });
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-    window.open(mailto);
+    const maxLen = 1800;
+    let body = emailBody;
+    if (body.length > maxLen) {
+      body = body.slice(0, maxLen - 30) + "\n\n[Message truncated for mailto link.]";
+    }
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
   }
 
   function handleCall() {
@@ -151,7 +192,7 @@ export default function ScriptFlow({ member, onClose }: Props) {
 
           <div style={{ marginBottom: "1rem" }}>
             <label style={{ display: "block", fontSize: "0.9rem", color: "#555", marginBottom: 4 }}>
-              Pick a script or describe an issue
+              Pick a topic or describe an issue
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
               {scripts.map((s) => (
@@ -173,6 +214,41 @@ export default function ScriptFlow({ member, onClose }: Props) {
                 </button>
               ))}
             </div>
+            {bills.length > 0 && (
+              <div style={{ marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", color: "#555", marginRight: "0.5rem" }}>Or a bill they sponsor:</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: 4 }}>
+                  {bills.slice(0, 8).map((b, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setSelectedScriptId(null);
+                        setCustomIssue(b.title || b.number || "this bill");
+                        setGenerateMessage(null);
+                        runGenerate(null, b.title || b.number || "this bill", b.number ?? undefined);
+                      }}
+                      style={{
+                        padding: "0.35rem 0.6rem",
+                        fontSize: "0.8rem",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: 6,
+                        background: "transparent",
+                        color: "#1a1a1a",
+                        cursor: "pointer",
+                        maxWidth: "100%",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={b.title || b.number || undefined}
+                    >
+                      {b.number ? `${b.number}${b.status ? ` (${b.status})` : ""}` : (b.title || "Bill").slice(0, 40)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <input
               type="text"
               value={customIssue}
@@ -205,6 +281,11 @@ export default function ScriptFlow({ member, onClose }: Props) {
             >
               {loading ? "Generating…" : "Generate script"}
             </button>
+            {generateMessage && (
+              <p style={{ fontSize: "0.85rem", color: "#c62828", marginTop: "0.5rem", marginBottom: 0 }}>
+                {generateMessage}
+              </p>
+            )}
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
