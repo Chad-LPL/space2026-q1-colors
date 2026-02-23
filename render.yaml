@@ -7,7 +7,7 @@ services:
     name: congress-map-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python schema.py && python seed_scripts.py
+    buildCommand: python -m pip install -r requirements.txt && python schema.py && python seed_scripts.py
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: CONGRESS_API_KEY
