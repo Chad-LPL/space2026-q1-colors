@@ -1,0 +1,17 @@
+# Render Blueprint: Congress Map
+# Repo: https://github.com/Chad-LPL/space2026-q1-colors
+# After creating the backend, create a Static Site manually for the frontend (see README "Deploy on Render").
+
+services:
+  - type: web
+    name: congress-map-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python schema.py && python seed_scripts.py
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CONGRESS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+        optional: true
