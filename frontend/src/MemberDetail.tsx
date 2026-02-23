@@ -30,21 +30,21 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
+        background: "var(--color-overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
-        padding: "1rem",
+        padding: "var(--space-4)",
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: "#fff",
-          border: "1px solid #e0e0e0",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-          borderRadius: 12,
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          boxShadow: "var(--shadow-lg)",
+          borderRadius: "var(--radius-lg)",
           maxWidth: 520,
           width: "100%",
           maxHeight: "90vh",
@@ -52,16 +52,16 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ padding: "1.25rem", borderBottom: "1px solid #e0e0e0", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ padding: "var(--space-5)", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: "1.25rem", color: "#1a1a1a" }}>{member.name}</h2>
-            <div style={{ color: "#555", fontSize: "0.9rem", marginTop: 4 }}>
+            <h2 style={{ margin: 0, fontSize: "var(--text-xl)", color: "var(--color-text)" }}>{member.name}</h2>
+            <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--text-sm)", marginTop: "var(--space-1)" }}>
               {partyLabel} · {member.state}
               {member.district != null && member.district > 0 ? `-${member.district}` : ""}
             </div>
-            {member.phone && <div style={{ marginTop: 6 }}>📞 {member.phone}</div>}
+            {member.phone && <div style={{ marginTop: "var(--space-2)" }}>📞 {member.phone}</div>}
             {(member.nextElection != null || member.firstElected != null) && (
-              <div style={{ fontSize: "0.85rem", color: "#555", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", marginTop: "var(--space-1)" }}>
                 {member.nextElection != null && `Next election: ${member.nextElection}`}
                 {member.nextElection != null && member.firstElected != null && " · "}
                 {member.firstElected != null && `First elected: ${member.firstElected}`}
@@ -74,7 +74,7 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
             style={{
               background: "none",
               border: "none",
-              color: "#555",
+              color: "var(--color-text-secondary)",
               fontSize: "1.5rem",
               cursor: "pointer",
               padding: 0,
@@ -85,28 +85,28 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
           </button>
         </div>
 
-        <div style={{ padding: "1rem 1.25rem" }}>
+        <div style={{ padding: "var(--space-4) var(--space-5)" }}>
           {member.url && (
-            <p style={{ margin: "0 0 0.75rem" }}>
+            <p style={{ margin: "0 0 var(--space-3)" }}>
               <a href={member.url} target="_blank" rel="noopener noreferrer">
                 Official website →
               </a>
             </p>
           )}
 
-          <div style={{ marginBottom: "1rem" }}>
+          <div style={{ marginBottom: "var(--space-4)" }}>
             <button
               type="button"
               onClick={onContact}
               style={{
-                padding: "0.5rem 1rem",
-                fontSize: "1rem",
+                padding: "var(--space-2) var(--space-4)",
+                fontSize: "var(--text-base)",
                 border: "none",
-                borderRadius: 6,
-                background: "#1976d2",
-                color: "#fff",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-primary)",
+                color: "var(--color-surface)",
                 cursor: "pointer",
-                fontWeight: 600,
+                fontWeight: "var(--font-semibold)",
               }}
             >
               Contact this member
@@ -114,14 +114,14 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
           </div>
 
           {bills.length > 0 && (
-            <section style={{ marginBottom: "1.25rem" }}>
-              <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "#555" }}>
+            <section style={{ marginBottom: "var(--space-5)" }}>
+              <h3 style={{ fontSize: "var(--text-base)", marginBottom: "var(--space-2)", color: "var(--color-text-secondary)" }}>
                 Sponsored legislation
               </h3>
-              <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.9rem" }}>
+              <ul style={{ margin: 0, paddingLeft: "var(--space-5)", fontSize: "var(--text-sm)" }}>
                 {bills.slice(0, 10).map((b, i) => (
-                  <li key={i} style={{ marginBottom: 8, listStyle: "none", marginLeft: "-1.25rem" }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem" }}>
+                  <li key={i} style={{ marginBottom: "var(--space-2)", listStyle: "none", marginLeft: "calc(-1 * var(--space-5))" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-2)" }}>
                       {b.url ? (
                         <a href={b.url} target="_blank" rel="noopener noreferrer">
                           {b.title || b.number || "Bill"}
@@ -130,19 +130,19 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
                         <span>{b.title || b.number || "Bill"}</span>
                       )}
                       {b.status && (
-                        <span style={{ fontSize: "0.8rem", color: "#555" }}>{b.status}</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{b.status}</span>
                       )}
                       {onContactAboutBill && (
                         <button
                           type="button"
                           onClick={() => onContactAboutBill(member, b)}
                           style={{
-                            padding: "0.25rem 0.5rem",
-                            fontSize: "0.8rem",
-                            border: "1px solid #1976d2",
-                            borderRadius: 4,
+                            padding: "var(--space-1) var(--space-2)",
+                            fontSize: "var(--text-xs)",
+                            border: "1px solid var(--color-primary)",
+                            borderRadius: "var(--radius-sm)",
                             background: "transparent",
-                            color: "#1976d2",
+                            color: "var(--color-primary)",
                             cursor: "pointer",
                           }}
                         >
@@ -158,13 +158,13 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
 
           {votes.length > 0 && (
             <section>
-              <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem", color: "#555" }}>
+              <h3 style={{ fontSize: "var(--text-base)", marginBottom: "var(--space-2)", color: "var(--color-text-secondary)" }}>
                 Recent votes
               </h3>
-              <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.9rem" }}>
+              <ul style={{ margin: 0, paddingLeft: "var(--space-5)", fontSize: "var(--text-sm)" }}>
                 {votes.slice(0, 8).map((v, i) => (
-                  <li key={i} style={{ marginBottom: 4 }}>
-                    <span style={{ color: v.position === "Yes" ? "#2e7d32" : v.position === "No" ? "#c62828" : "#555" }}>
+                  <li key={i} style={{ marginBottom: "var(--space-1)" }}>
+                    <span style={{ color: v.position === "Yes" ? "var(--color-success)" : v.position === "No" ? "var(--color-error)" : "var(--color-text-secondary)" }}>
                       {v.position ?? "—"}
                     </span>
                     {v.description && ` · ${v.description.slice(0, 60)}${v.description.length > 60 ? "…" : ""}`}
@@ -175,7 +175,7 @@ export default function MemberDetail({ member, onClose, onContact, onContactAbou
           )}
 
           {bills.length === 0 && votes.length === 0 && (
-            <p style={{ color: "#555", fontSize: "0.9rem" }}>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--text-sm)" }}>
               Bill and vote data may still be loading or unavailable for this member.
             </p>
           )}

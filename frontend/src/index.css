@@ -1,21 +1,97 @@
-/* Light theme - Congress Map */
+/* Congress Map – design tokens (progressive, civic, upscale) */
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap");
+
+:root {
+  /* Colors – civic, trustworthy, progressive */
+  --color-primary: #0d47a1;
+  --color-primary-hover: #1565c0;
+  --color-primary-light: #e3f2fd;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #5c5c5c;
+  --color-text-muted: #757575;
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-border: #e0e2e6;
+  --color-border-light: #e8eaed;
+  --color-error: #b71c1c;
+  --color-success: #1b5e20;
+  --color-party-d: #1565c0;
+  --color-party-r: #c62828;
+  --color-overlay: rgba(0, 0, 0, 0.55);
+  --color-focus-ring: var(--color-primary);
+
+  /* Spacing – 8px base */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem;    /* 16px */
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Typography */
+  --font-sans: "Source Sans 3", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --text-xs: 0.8rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.1rem;
+  --text-xl: 1.25rem;
+  --font-normal: 400;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: #f5f5f5;
-  color: #1a1a1a;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
   min-height: 100vh;
 }
+
 a {
-  color: #1565c0;
+  color: var(--color-primary);
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }
-#root {
-  min-height: 100vh;
+
+a:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }

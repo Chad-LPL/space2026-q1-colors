@@ -69,10 +69,11 @@ Run both backend and frontend; address lookup and member data require the backen
 ## Data sources
 
 - **Member data:** 119th Congress (Congress.gov API). The app requests current members for the 119th first and falls back to 118th when the API has no member for a given district yet.
+- **Contact form URLs:** When the Congress API does not provide an email or contact form URL, the backend fills in contact form links from [unitedstates/contact-congress](https://github.com/unitedstates/contact-congress) (by bioguide ID). The "Open email" / "Open contact form" actions in the contact modal use this when available.
 - **District boundaries:** The map loads precomputed district paths from `frontend/public/districts_precomputed.json` (no backend required). To update district boundaries: run `python3 backend/scripts/fetch_districts_118.py` to fetch from Census (if needed), then `./scripts/refresh_districts.sh` from repo root. The refresh script copies the GeoJSON to the frontend and runs the precompute step so the map shows the latest boundaries without rendering artifacts.
 
 - **Geocoding:** Census Geocoder (no key) for address → coordinates and district.
 
 ## FEC integration (later)
 
-FEC-related code is archived in `backend/archive_fec/` so we can later add fundraising totals per representative and donor insights. See plan/docs for details.
+FEC-related code is archived in `backend/archive_fec/` so we can later add fundraising totals per representative and donor insights. See that directory for the archived code and possible future integration.

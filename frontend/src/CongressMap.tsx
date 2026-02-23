@@ -219,11 +219,11 @@ export default function CongressMap() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 60px)", gap: 0 }}>
-      <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #e0e0e0", flexShrink: 0, background: "#fff" }}>
+      <div style={{ padding: "var(--space-3) var(--space-4)", borderBottom: "1px solid var(--color-border)", flexShrink: 0, background: "var(--color-surface)" }}>
         <AddressSearch onSubmit={handleAddressSubmit} />
         {geocodeResult && (
-          <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", color: "#555" }}>
-            You're in <strong style={{ color: "#1a1a1a" }}>{geocodeResult.districtLabel}</strong> — {geocodeResult.label}
+          <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>
+            You're in <strong style={{ color: "var(--color-text)" }}>{geocodeResult.districtLabel}</strong> — {geocodeResult.label}
           </p>
         )}
       </div>
@@ -231,22 +231,22 @@ export default function CongressMap() {
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         <div style={{ flex: 1, position: "relative", minWidth: 0, minHeight: 400 }}>
           {!geographyData && !geographyError && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#e8eef4", color: "#555", fontSize: "0.9rem" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-primary-light)", color: "var(--color-text-secondary)", fontSize: "var(--text-sm)" }}>
               Loading map…
             </div>
           )}
           {geographyError && (
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#e8eef4", color: "#c62828", fontSize: "0.9rem" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-primary-light)", color: "var(--color-error)", fontSize: "var(--text-sm)" }}>
               {geographyError}
             </div>
           )}
           {geographyData && precomputedLoading && !precomputedDistricts && !precomputedError && (
-            <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", padding: "0.35rem 0.75rem", background: "rgba(255,255,255,0.95)", border: "1px solid #ccc", borderRadius: 6, fontSize: "0.85rem", color: "#555", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", zIndex: 10 }}>
+            <div style={{ position: "absolute", bottom: "var(--space-2)", left: "50%", transform: "translateX(-50%)", padding: "var(--space-1) var(--space-3)", background: "rgba(255,255,255,0.95)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", boxShadow: "var(--shadow-md)", zIndex: 10 }}>
               Loading district boundaries…
             </div>
           )}
           {geographyData && !precomputedLoading && precomputedError && (
-            <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", padding: "0.35rem 0.75rem", background: "rgba(255,255,255,0.95)", border: "1px solid #f5a623", borderRadius: 6, fontSize: "0.85rem", color: "#333", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "90%" }}>
+            <div style={{ position: "absolute", bottom: "var(--space-2)", left: "50%", transform: "translateX(-50%)", padding: "var(--space-1) var(--space-3)", background: "rgba(255,255,255,0.95)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontSize: "var(--text-xs)", color: "var(--color-text)", boxShadow: "var(--shadow-md)", maxWidth: "90%" }}>
               {precomputedError}
             </div>
           )}
@@ -258,7 +258,7 @@ export default function CongressMap() {
             style={{
               width: "100%",
               height: "100%",
-              background: "#cfd8dc",
+              background: "var(--color-border)",
               minHeight: 400,
               visibility: geographyData ? "visible" : "hidden",
             }}
@@ -294,10 +294,10 @@ export default function CongressMap() {
                           <Geography
                             key={`base-${geo.rsmKey}`}
                             geography={geo}
-                            fill="#e8eaf6"
+                            fill="#e3f2fd"
                             stroke="#455a64"
                             strokeWidth={0.75}
-                            style={{ default: { outline: "none" }, hover: { fill: "#c5cae9", cursor: "pointer", outline: "none" }, pressed: { outline: "none" }}}
+                            style={{ default: { outline: "none" }, hover: { fill: "#bbdefb", cursor: "pointer", outline: "none" }, pressed: { outline: "none" }}}
                             onClick={() => { if (fipsStr) handleStateSelect(fipsStr); }}
                           />
                         );
@@ -328,7 +328,7 @@ export default function CongressMap() {
                           <path
                             key={f.geoid}
                             d={f.path}
-                            fill={isSelected ? "#1565c0" : isHovered ? "#90a4ae" : "#78909c"}
+                            fill={isSelected ? "#0d47a1" : isHovered ? "#90a4ae" : "#78909c"}
                             stroke="#37474f"
                             strokeWidth={0.5}
                             style={{ outline: "none", cursor: "pointer" }}
@@ -362,7 +362,7 @@ export default function CongressMap() {
                           <Geography
                             key={geo.rsmKey}
                             geography={geo}
-                            fill={isSelected ? "#1565c0" : "#78909c"}
+                            fill={isSelected ? "#0d47a1" : "#78909c"}
                             stroke="#263238"
                             strokeWidth={1}
                             style={{
@@ -404,19 +404,19 @@ export default function CongressMap() {
           style={{
             width: 340,
             flexShrink: 0,
-            borderLeft: "1px solid #e0e0e0",
+            borderLeft: "1px solid var(--color-border)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            background: "#fff",
-            boxShadow: "-2px 0 8px rgba(0,0,0,0.06)",
+            background: "var(--color-surface)",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           {membersError && (
-            <div style={{ padding: "1rem", color: "#c62828" }}>{membersError}</div>
+            <div style={{ padding: "var(--space-4)", color: "var(--color-error)" }}>{membersError}</div>
           )}
           {loadingMembers && (
-            <div style={{ padding: "1rem", color: "#555" }}>Loading members…</div>
+            <div style={{ padding: "var(--space-4)", color: "var(--color-text-secondary)" }}>Loading members…</div>
           )}
           {membersData && !loadingMembers && (
             <MemberCards
@@ -434,7 +434,7 @@ export default function CongressMap() {
             />
           )}
           {!membersData && !loadingMembers && !membersError && (
-            <div style={{ padding: "1rem", color: "#555", fontSize: "0.9rem" }}>
+            <div style={{ padding: "var(--space-4)", color: "var(--color-text-secondary)", fontSize: "var(--text-sm)" }}>
               Enter your address or click a district on the map to see your Representative and Senators.
             </div>
           )}

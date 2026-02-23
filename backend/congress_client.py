@@ -9,6 +9,23 @@ import httpx
 
 from config import CONGRESS_API_KEY, CONGRESS_BASE_URL, CURRENT_CONGRESS, CONGRESS_FOR_MEMBER_LOOKUP
 
+try:
+    from contact_validation import (
+        is_valid_contact_form_url as _is_valid_contact_form_url,
+        is_valid_member_website_url as _is_valid_member_website_url,
+    )
+except ImportError:
+    _is_valid_contact_form_url = None
+    _is_valid_member_website_url = None
+try:
+    from contact_congress import get_contact_form_url as _contact_congress_url
+except ImportError:
+    _contact_congress_url = None
+try:
+    from legislators_current import get_legislator_fallback as _legislator_fallback
+except ImportError:
+    _legislator_fallback = None
+
 # In-memory cache: key -> (expires_at, data). Long TTL for member info (7 days), short for votes/bills (1 hour).
 _CACHE: dict[str, tuple[float, Any]] = {}
 _MEMBER_TTL = 7 * 24 * 3600   # 7 days
@@ -248,6 +265,27 @@ def _normalize_member(m: dict) -> dict:
         uid = current.get("bioguideId") or current.get("id")
     raw_party = current.get("party") or m.get("party") or current.get("partyName") or m.get("partyName")
     party = _normalize_party(raw_party) or raw_party
+    contact_form_url = _member_contact_form_url(m)
+    email = _member_email(m)
+    bioguide = m.get("bioguideId") or (str(uid) if uid is not None else None)
+    phone = _member_phone(m)
+    member_url = m.get("url") or current.get("url")
+    if isinstance(member_url, str):
+        member_url = member_url.strip() or None
+    if _legislator_fallback and bioguide:
+        fallback = _legislator_fallback(bioguide)
+        if not phone and fallback.get("phone"):
+            phone = fallback["phone"]
+        if not email and not contact_form_url and fallback.get("contact_form"):
+            contact_form_url = fallback["contact_form"]
+        if _is_valid_member_website_url and not _is_valid_member_website_url(member_url) and fallback.get("url"):
+            member_url = fallback["url"]
+        elif not member_url and fallback.get("url"):
+            member_url = fallback["url"]
+    if not email and not contact_form_url and bioguide and _contact_congress_url:
+        candidate = _contact_congress_url(bioguide)
+        if candidate and (_is_valid_contact_form_url is None or _is_valid_contact_form_url(candidate)):
+            contact_form_url = candidate
     return {
         "id": str(uid) if uid is not None else None,
         "bioguideId": m.get("bioguideId"),
@@ -258,10 +296,12 @@ def _normalize_member(m: dict) -> dict:
         "state": current.get("state") or m.get("state"),
         "district": current.get("district"),
         "chamber": chamber,
-        "phone": _member_phone(m),
-        "url": m.get("url") or current.get("url"),
+        "phone": phone,
+        "url": member_url,
         "nextElection": current.get("endYear"),
         "firstElected": current.get("startYear") if terms else None,
+        "email": email,
+        "contactFormUrl": contact_form_url if not email else None,
     }
 
 
@@ -272,6 +312,37 @@ def _member_phone(m: dict) -> Optional[str]:
         if t.get("phone"):
             return t.get("phone")
     return m.get("phone")
+
+
+def _member_email(m: dict) -> Optional[str]:
+    """Extract email from member or terms if Congress API provides it."""
+    terms = _terms_list(m)
+    for t in reversed(terms):
+        email = t.get("email") or t.get("contactForm")
+        if isinstance(email, str) and "@" in email:
+            return email.strip() or None
+    raw = m.get("email") or m.get("contactForm")
+    if isinstance(raw, str) and "@" in raw:
+        return raw.strip() or None
+    return None
+
+
+def _member_contact_form_url(m: dict) -> Optional[str]:
+    """Extract contact form URL from member or terms if API provides it (when no direct email)."""
+    terms = _terms_list(m)
+    for t in reversed(terms):
+        url = t.get("contactForm") or t.get("contactFormUrl")
+        if isinstance(url, str) and url.strip().startswith("http"):
+            u = url.strip()
+            if _is_valid_contact_form_url is None or _is_valid_contact_form_url(u):
+                return u
+            return None
+    raw = m.get("contactForm") or m.get("contactFormUrl")
+    if isinstance(raw, str) and raw.strip().startswith("http"):
+        u = raw.strip()
+        if _is_valid_contact_form_url is None or _is_valid_contact_form_url(u):
+            return u
+    return None
 
 
 def get_member(bioguide_id: str) -> Optional[dict]:

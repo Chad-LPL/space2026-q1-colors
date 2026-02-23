@@ -88,12 +88,12 @@ export default function AddressSearch({ onSubmit }: Props) {
             autoComplete="off"
             style={{
               width: "100%",
-              padding: "0.5rem 0.75rem",
-              fontSize: "1rem",
-              border: "1px solid #ccc",
-              borderRadius: 6,
-              background: "#fff",
-              color: "#1a1a1a",
+              padding: "var(--space-2) var(--space-3)",
+              fontSize: "var(--text-base)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-surface)",
+              color: "var(--color-text)",
             }}
           />
           {showSuggestions && (
@@ -107,22 +107,22 @@ export default function AddressSearch({ onSubmit }: Props) {
                 marginTop: 2,
                 padding: "0.25rem 0",
                 listStyle: "none",
-                background: "#fff",
-                border: "1px solid #ccc",
-                borderRadius: 6,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
+                boxShadow: "var(--shadow-md)",
                 zIndex: 10,
                 maxHeight: 220,
                 overflowY: "auto",
               }}
             >
               {suggestLoading && (
-                <li style={{ padding: "0.5rem 0.75rem", color: "#555", fontSize: "0.9rem" }}>
+                <li style={{ padding: "var(--space-2) var(--space-3)", color: "var(--color-text-secondary)", fontSize: "var(--text-sm)" }}>
                   Finding addresses…
                 </li>
               )}
               {!suggestLoading && suggestions.length === 0 && (
-                <li style={{ padding: "0.5rem 0.75rem", color: "#777", fontSize: "0.9rem" }}>
+                <li style={{ padding: "var(--space-2) var(--space-3)", color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>
                   No suggestions. Add city and state for more suggestions.
                 </li>
               )}
@@ -134,12 +134,12 @@ export default function AddressSearch({ onSubmit }: Props) {
                       onClick={() => pickSuggestion(s.address)}
                       style={{
                         width: "100%",
-                        padding: "0.5rem 0.75rem",
+                        padding: "var(--space-2) var(--space-3)",
                         textAlign: "left",
                         border: "none",
                         background: "transparent",
-                        color: "#1a1a1a",
-                        fontSize: "0.95rem",
+                        color: "var(--color-text)",
+                        fontSize: "var(--text-base)",
                         cursor: "pointer",
                       }}
                       onMouseEnter={(e) => {
@@ -160,13 +160,13 @@ export default function AddressSearch({ onSubmit }: Props) {
           type="submit"
           disabled={loading}
           style={{
-            padding: "0.5rem 1rem",
-            fontSize: "1rem",
-            fontWeight: 600,
+            padding: "var(--space-2) var(--space-4)",
+            fontSize: "var(--text-base)",
+            fontWeight: "var(--font-semibold)",
             border: "none",
-            borderRadius: 6,
-            background: "#1976d2",
-            color: "#fff",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--color-primary)",
+            color: "var(--color-surface)",
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
@@ -174,7 +174,7 @@ export default function AddressSearch({ onSubmit }: Props) {
         </button>
       </form>
       {error && (
-        <span style={{ display: "block", marginTop: "0.25rem", color: "#c62828", fontSize: "0.9rem" }}>
+        <span style={{ display: "block", marginTop: "var(--space-1)", color: "var(--color-error)", fontSize: "var(--text-sm)" }}>
           {error}
         </span>
       )}

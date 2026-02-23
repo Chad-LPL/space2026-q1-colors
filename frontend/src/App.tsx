@@ -6,20 +6,20 @@ function App() {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header
         style={{
-          padding: "0.75rem 1.25rem",
-          borderBottom: "1px solid #e0e0e0",
+          padding: "var(--space-3) var(--space-5)",
+          borderBottom: "1px solid var(--color-border)",
           display: "flex",
-          gap: "1rem",
+          gap: "var(--space-4)",
           alignItems: "center",
           flexShrink: 0,
-          background: "#fff",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          background: "var(--color-surface)",
+          boxShadow: "var(--shadow-sm)",
         }}
       >
-        <Link to="/" style={{ fontWeight: 700, fontSize: "1.2rem", color: "#1a1a1a" }}>
+        <Link to="/" style={{ fontWeight: "var(--font-bold)", fontSize: "var(--text-lg)", color: "var(--color-text)" }}>
           Congress Map
         </Link>
-        <span style={{ fontSize: "0.9rem", color: "#555" }}>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>
           Find your district · Contact your Rep & Senators
         </span>
       </header>

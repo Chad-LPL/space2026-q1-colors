@@ -33,6 +33,8 @@ export interface Member {
   url?: string;
   nextElection?: number;
   firstElected?: number;
+  email?: string;
+  contactFormUrl?: string;
 }
 
 export interface MembersResponse {
