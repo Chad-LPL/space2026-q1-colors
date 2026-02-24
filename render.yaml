@@ -7,8 +7,9 @@ services:
     name: congress-map-api
     runtime: python
     rootDir: backend
-    buildCommand: python -m pip install -r requirements.txt && python schema.py && python seed_scripts.py
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # DB is created at startup (build phase filesystem is read-only on Render)
+    buildCommand: python -m pip install -r requirements.txt
+    startCommand: python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: CONGRESS_API_KEY
         sync: false

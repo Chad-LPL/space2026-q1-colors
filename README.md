@@ -83,8 +83,8 @@ You will create two things on Render: a **Web Service** (backend) and a **Static
 ### Backend build and run (for Render Web Service)
 
 - **Root Directory:** `backend`
-- **Build Command:** `pip install -r requirements.txt && python schema.py && python seed_scripts.py`
-- **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT` (Render sets `$PORT`; do not change it.)
+- **Build Command:** `python -m pip install -r requirements.txt` (DB is created at startup; build phase is read-only on Render.)
+- **Start Command:** `python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT` (Render sets `$PORT`; do not change it.)
 - **Environment variables:** `CONGRESS_API_KEY` (required), `GEMINI_API_KEY` (optional, for AI-generated scripts)
 
 ### Frontend build (for Render Static Site)
@@ -127,8 +127,8 @@ You will create two things on Render: a **Web Service** (backend) and a **Static
    - **Branch:** `main` (or whichever branch you use).
    - **Root Directory:** Click **Advanced**, then set **Root Directory** to: `backend`. (All build/start commands run from this folder.)
    - **Runtime:** **Python 3**.
-   - **Build Command:** `pip install -r requirements.txt && python schema.py && python seed_scripts.py`
-   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT` (Render provides `$PORT`; do not change it.)
+   - **Build Command:** `python -m pip install -r requirements.txt`
+   - **Start Command:** `python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT` (Render provides `$PORT`; do not change it.)
 7. **Environment variables:**
    - Find the **Environment Variables** section (scroll or open **Advanced**).
    - Click **Add Environment Variable**.
