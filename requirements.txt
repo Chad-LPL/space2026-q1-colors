@@ -1,0 +1,3 @@
+# Backend deps live in backend/requirements.txt. This file exists so
+# Render finds requirements.txt when the build runs from repo root.
+-r backend/requirements.txt
