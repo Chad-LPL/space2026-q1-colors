@@ -8,9 +8,9 @@ services:
     runtime: python
     rootDir: backend
     # DB is created at startup (build phase filesystem is read-only on Render).
-    # cd backend so commands work when Render runs from repo root (requirements.txt lives in backend/).
-    buildCommand: cd backend && python -m pip install -r requirements.txt
-    startCommand: cd backend && python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Use paths from repo root: Render may run build/start from /opt/render/project/src (repo root).
+    buildCommand: python -m pip install -r requirements.txt
+    startCommand: python backend/schema.py && python backend/seed_scripts.py && uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: CONGRESS_API_KEY
         sync: false
