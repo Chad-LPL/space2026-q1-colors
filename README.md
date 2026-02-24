@@ -82,9 +82,9 @@ You will create two things on Render: a **Web Service** (backend) and a **Static
 
 ### Backend build and run (for Render Web Service)
 
-- **Root Directory:** `backend`
+- **Root Directory:** `backend` — Required. If this is empty, you'll get `ModuleNotFoundError` (deps are installed from `backend/` during build).
 - **Build Command:** `python -m pip install -r requirements.txt` (DB is created at startup; build phase is read-only on Render.)
-- **Start Command:** `python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT` (Render sets `$PORT`; do not change it.)
+- **Start Command:** `python schema.py && python seed_scripts.py && uvicorn main:app --host 0.0.0.0 --port $PORT` (Render sets `$PORT`; do not change it. No `backend/` prefix — commands run from Root Directory.)
 - **Environment variables:** `CONGRESS_API_KEY` (required), `GEMINI_API_KEY` (optional, for AI-generated scripts)
 
 ### Frontend build (for Render Static Site)
